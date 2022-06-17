@@ -1,0 +1,48 @@
+import requests
+import earthpy.plot as ep
+import json
+from shapely.geometry.polygon import Polygon
+import rasterio
+from glob import glob
+
+
+streetname = input('Give me the streetname?')
+housenumber = input('Give me the housenumber?')
+zipcode = input('Give me the zipcode?')
+adres_api = {"straatnaam":{streetname}, "huisnummer":{housenumber}, "postcode":{zipcode}}
+api_url = "https://api.basisregisters.vlaanderen.be/v1/adresmatch"
+response1 = requests.get(url = api_url, params = adres_api).json()
+response1
+
+response2 = requests.get(response1['adresMatches'][0]['adresseerbareObjecten'][0]['detail']).json()
+
+response3 = requests.get(response2['gebouw']['detail']).json()
+
+polygon_house = Polygon(response3["geometriePolygoon"]["polygon"]["coordinates"][0])
+type(polygon_house)
+float_house = (response3["geometriePolygoon"]["polygon"]["coordinates"][0])
+polygon_house
+
+dsm14 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDSMRAS1m_k14.tif"
+dtm14 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDTMRAS1m_k14.tif"
+dsm22 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDSMRAS1m_k22.tif"
+dtm22 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDTMRAS1m_k22.tif"
+dsm15 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDSMRAS1m_k15.tif"
+dtm15 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDTMRAS1m_k15.tif"
+dsm23 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDSMRAS1m_k23.tif"
+dtm23 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDTMRAS1m_k23.tif"
+dsm30 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDSMRAS1m_k30.tif"
+dtm30 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDTMRAS1m_k30.tif"
+
+src = rasterio.open(dsm15)
+src.bounds
+
+for x, y in float_house:
+    if src.bounds[0] < x < src.bounds[2] and src.bounds[1] < y < src.bounds[3]:
+        print("inside")
+    else:
+        print("outside")
+
+glob('*.tif')
+
+
