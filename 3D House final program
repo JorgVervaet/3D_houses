@@ -1,28 +1,33 @@
 import requests
 import earthpy.plot as ep
-import json
 from shapely.geometry.polygon import Polygon
 import rasterio
-from glob import glob
+import plotly.graph_objects as go
 
+streetname = input('Give me the streetname?') # Here we ask the streetname
+housenumber = input('Give me the housenumber?') # Here we ask the housenumber
+zipcode = input('Give me the zipcode?') # Here we ask the zipcode
 
-streetname = input('Give me the streetname?')
-housenumber = input('Give me the housenumber?')
-zipcode = input('Give me the zipcode?')
-adres_api = {"straatnaam":{streetname}, "huisnummer":{housenumber}, "postcode":{zipcode}}
+#Here we put the whole adres together
+adres_api = {"straatnaam":{streetname}, "huisnummer":{housenumber}, "postcode":{zipcode}} #Here we put the whole adres together
 api_url = "https://api.basisregisters.vlaanderen.be/v1/adresmatch"
-response1 = requests.get(url = api_url, params = adres_api).json()
-response1
 
+# Here we get the first url
+response1 = requests.get(url = api_url, params = adres_api).json() #Here we get the first url
+
+ # Here we get the second url
 response2 = requests.get(response1['adresMatches'][0]['adresseerbareObjecten'][0]['detail']).json()
 
+# Here we get the third url
 response3 = requests.get(response2['gebouw']['detail']).json()
 
+# Here we have the polygon that we need to make the 3D plot
 polygon_house = Polygon(response3["geometriePolygoon"]["polygon"]["coordinates"][0])
-type(polygon_house)
-float_house = (response3["geometriePolygoon"]["polygon"]["coordinates"][0])
-polygon_house
 
+# Here we have the variable we need to check if the coordinates are in the tif file
+float_house = (response3["geometriePolygoon"]["polygon"]["coordinates"][0])
+
+# loading all the tif files
 dsm14 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDSMRAS1m_k14.tif"
 dtm14 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDTMRAS1m_k14.tif"
 dsm22 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDSMRAS1m_k22.tif"
@@ -34,15 +39,41 @@ dtm23 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDTMRAS1m_k
 dsm30 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDSMRAS1m_k30.tif"
 dtm30 = "/Users/Jorg/3D_houses_data/DHMVIIDSMRAS1m_k/GeoTIFFall/DHMVIIDTMRAS1m_k30.tif"
 
-src = rasterio.open(dsm15)
-src.bounds
+dsmtif = [dsm14, dsm15, dsm22, dsm23, dsm30]
+dtmtif = [dtm14, dtm15, dtm22, dtm23, dtm30]
 
-for x, y in float_house:
-    if src.bounds[0] < x < src.bounds[2] and src.bounds[1] < y < src.bounds[3]:
-        print("inside")
-    else:
-        print("outside")
+for src in dsmtif:
+    boundsrc = rasterio.open(src) # make a bounding area of every tif
+    
+    for x, y in float_house:
+        if boundsrc.bounds[0] < x < boundsrc.bounds[2] and boundsrc.bounds[1] < y < boundsrc.bounds[3]:
+            dsmvar = boundsrc
+        
+for src in dtmtif:
+    boundsrc = rasterio.open(src)
+    
+    for x, y in float_house:
+        if boundsrc.bounds[0] < x < boundsrc.bounds[2] and boundsrc.bounds[1] < y < boundsrc.bounds[3]:
+            dtmvar = boundsrc
+           
+with dsmvar as src: # making the polygon of the dsm
+    out_image, out_transform = rasterio.mask.mask(src, [polygon_house], crop=True)
+    clipdsm = out_image[0]
+    
+with dtmvar as src: # making the polygon of the dtm
+    out_image, out_transform = rasterio.mask.mask(src, [polygon_house], crop=True)
+    clipdtm = out_image[0]
 
-glob('*.tif')
+clipchm = clipdsm - clipdtm # making the chm by subtracting dtm from dsm
 
+# creating the 3D plot
+fig = go.Figure(data=[go.Surface(z=clipchm)])
+
+fig.update_scenes(xaxis_title_text="metres") 
+fig.update_scenes(yaxis_title_text="metres") 
+fig.update_scenes(zaxis_title_text="metres") 
+
+fig.update_layout(title='CHM', autosize=True)
+
+fig.show() # show the 3D plot
 
